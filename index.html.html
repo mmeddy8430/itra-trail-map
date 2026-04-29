@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ITRA Trail Guide — Indiana Horse Trail Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Matching Google Fonts: elegant thin serif for titles, clean sans for body -->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Lato:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal-dark:   #15584a;
+    --teal-mid:    #1d7a65;
+    --teal-light:  #2a9278;
+    --cream:       #f5edd8;
+    --cream-dark:  #ede0c4;
+    --mauve:       #a0496a;
+    --mauve-light: #c0708a;
+    --charcoal:    #222222;
+    --white:       #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--cream);
+    color: var(--charcoal);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header matching site banner ── */
+  header {
+    background-color: var(--teal-dark);
+    /* Chevron texture matching the site */
+    background-image: repeating-linear-gradient(
+      120deg,
+      transparent,
+      transparent 18px,
+      rgba(255,255,255,0.04) 18px,
+      rgba(255,255,255,0.04) 20px
+    ),
+    repeating-linear-gradient(
+      60deg,
+      transparent,
+      transparent 18px,
+      rgba(255,255,255,0.04) 18px,
+      rgba(255,255,255,0.04) 20px
+    );
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+
+  .header-titles {
+    flex: 1;
+    text-align: center;
+  }
+
+  .header-titles h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 26px;
+    color: var(--white);
+    letter-spacing: 1px;
+  }
+
+  .header-titles p {
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  /* ── Map ── */
+  #map {
+    flex: 1;
+    width: 100%;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    position: absolute;
+    bottom: 36px;
+    left: 14px;
+    background: rgba(245, 237, 216, 0.96);
+    border: 1.5px solid var(--teal-dark);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--charcoal);
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+  }
+  .legend-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--teal-dark);
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--teal-light);
+    padding-bottom: 5px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-family: 'Lato', sans-serif;
+    font-size: 11.5px;
+  }
+  .legend-dot {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--teal-dark);
+    flex-shrink: 0;
+  }
+
+  /* ── Popups ── */
+  .leaflet-popup-content-wrapper {
+    border-radius: 6px !important;
+    border: 2px solid var(--teal-dark) !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+    padding: 0 !important;
+    overflow: hidden;
+    background: var(--cream) !important;
+  }
+  .leaflet-popup-tip {
+    background: var(--cream) !important;
+  }
+  .leaflet-popup-content {
+    margin: 0 !important;
+    min-width: 210px;
+  }
+
+  .popup-inner {
+    padding: 14px 16px 13px;
+    background: var(--cream);
+  }
+  .popup-header {
+    background: var(--teal-dark);
+    margin: -14px -16px 10px;
+    padding: 10px 14px 9px;
+  }
+  .popup-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--white);
+    line-height: 1.25;
+  }
+  .popup-name a {
+    color: var(--white);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.5);
+  }
+  .popup-name a:hover {
+    border-bottom-color: var(--white);
+    color: var(--cream);
+  }
+  .popup-name a::after {
+    content: ' ↗';
+    font-size: 11px;
+    opacity: 0.7;
+  }
+  .popup-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12.5px;
+    font-family: 'Lato', sans-serif;
+    color: #444;
+    margin-bottom: 4px;
+  }
+  .popup-miles-box {
+    margin-top: 10px;
+    background: var(--cream-dark);
+    border-left: 4px solid var(--teal-mid);
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+  }
+  .popup-miles-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 24px;
+    color: var(--teal-dark);
+    line-height: 1;
+  }
+  .popup-miles-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 10px;
+    color: var(--teal-mid);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 1px;
+  }
+  .popup-unknown {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #999;
+    font-style: italic;
+    font-family: 'Lato', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-titles">
+    <h1>ITRA Trail Guide</h1>
+    <p>Indiana Horse Trail Riding Venues · Click any marker for details</p>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-title">Trail Mileage</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5da832;"></div><span>Under 10 miles</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e8b820;"></div><span>10 – 50 miles</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a0496a;"></div><span>50+ miles</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;"></div><span>Mileage unknown</span></div>
+</div>
+
+<script>
+// ============================================================
+// VENUE DATA
+// To add a new venue, copy one of the lines below and fill in:
+//   name    - the venue name (as it should appear in the popup)
+//   town    - the nearest town
+//   miles   - miles of trail (use null if unknown)
+//   lat/lng - latitude and longitude (right-click on Google Maps to copy)
+//   url     - the venue's website URL (use null if none)
+// ============================================================
+const venues = [
+  { name: "B&O Trail",                                 town: "Brownsburg",  miles: 1.5,  lat: 39.8072, lng: -86.3677, url: "https://www.indianatrails.com/b-o-trail" },
+  { name: "Big 4 Farm Heritage Trail",                 town: "Lebanon",     miles: 5,    lat: 40.0522, lng: -86.4880, url: "https://whitestown.in.gov/community/parks-and-recreation/big-four-linear-trail-park/" },
+  { name: "Birds Eye Trail (Hoosier National Forest)", town: "Birdseye",    miles: 11.8, lat: 38.3141, lng: -86.6821, url: "https://www.fs.usda.gov/r09/hoosier/recreation/trails/birdseye-trail" },
+  { name: "Blackwell Deam (Hoosier National Forest)",  town: "Bloomington", miles: 30,   lat: 39.0381, lng: -86.3547, url: "https://www.fs.usda.gov/r09/hoosier/recreation/blackwell-campground" },
+  { name: "Bluhm County Park",                         town: "Westville",   miles: 6,    lat: 41.5516, lng: -86.9170, url: "https://laportecountyparks.org/parks/bluhm-county-park/" },
+  { name: "Brown County State Park",                   town: "Nashville",   miles: 75,   lat: 39.1933, lng: -86.2166, url: "https://www.in.gov/dnr/state-parks/parks-lakes/brown-county-state-park/" },
+  { name: "Buckley Homestead Park",                    town: "Lowell",      miles: null, lat: 41.2810, lng: -87.3787, url: "https://lakecountyparks.com/149/Buckley-Homestead" },
+  { name: "Clark State Forest",                        town: "Henryville",  miles: 61,   lat: 38.5530, lng: -85.7669, url: "https://www.in.gov/dnr/forestry/properties/clark-state-forest/" },
+  { name: "Come Again Horse Camp",                     town: "Leavenworth", miles: 80,   lat: 38.2485, lng: -86.2890, url: "https://www.in.gov/dnr/forestry/properties/clark-state-forest/" }
+  // ADD NEW VENUES ABOVE THIS LINE — don't forget a comma after the previous entry
+];
+// ============================================================
+
+function getColor(m) {
+  if (m === null) return '#aaaaaa';
+  if (m < 10)    return '#5da832';
+  if (m <= 50)   return '#e8b820';
+  return '#a0496a'; // mauve for 50+ — matches site accent color
+}
+function getRadius(m) {
+  if (m === null) return 9;
+  if (m < 10)    return 9;
+  if (m <= 50)   return 12;
+  return 15;
+}
+
+const map = L.map('map').setView([39.65, -86.35], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 18
+}).addTo(map);
+
+venues.forEach(v => {
+  const marker = L.circleMarker([v.lat, v.lng], {
+    radius: getRadius(v.miles),
+    fillColor: getColor(v.miles),
+    color: '#15584a',   // teal-dark border on all markers
+    weight: 2.5,
+    opacity: 1,
+    fillOpacity: 0.92
+  }).addTo(map);
+
+  const nameHtml = v.url
+    ? `<a href="${v.url}" target="_blank" rel="noopener noreferrer">${v.name}</a>`
+    : v.name;
+
+  const milesHtml = v.miles !== null
+    ? `<div class="popup-miles-box">
+         <div class="popup-miles-num">${v.miles}</div>
+         <div class="popup-miles-label">Miles of Trails</div>
+       </div>`
+    : `<div class="popup-unknown">Trail mileage not listed</div>`;
+
+  marker.bindPopup(`
+    <div class="popup-inner">
+      <div class="popup-header">
+        <div class="popup-name">${nameHtml}</div>
+      </div>
+      <div class="popup-row">📍 <span><strong>${v.town}</strong>, Indiana</span></div>
+      ${milesHtml}
+    </div>
+  `, { maxWidth: 280 });
+});
+</script>
+
+</body>
+</html>
